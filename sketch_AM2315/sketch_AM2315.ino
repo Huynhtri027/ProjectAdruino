@@ -2,11 +2,19 @@
 #include <Wire.h>
 const int ledPin = 13;
 const int AOUTPin = 0;
-const int DOUTPin = 2;
+const int DOUTPin = 8;
 String valdata;
 int value, serialValue;
 
+boolean statustime = false;
+long lowV = 60000;
+long highV = 90000;;
+unsigned long time = 0;
+unsigned long sensorTime = 0;
+
+
 AM2315 am2315;
+void readCovalue();
 void HandleSetLimitCO();
 void HandleLimitCO();
 
@@ -14,6 +22,7 @@ void HandleLimitCO();
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
+  
   Serial.print("\t\t\t\t");
   
   Serial.println("AM2315 Humidity - Temperature Sensor - MQ7 Sensor");
@@ -31,7 +40,7 @@ void setup() {
 void loop() {
   // put your main code here, to run repeatedly:
  
-  value = analogRead(AOUTPin);
+  readCovalue();
   HandleSetLimitCO();
   am2315.readSensor();
 
@@ -44,6 +53,27 @@ void loop() {
 
   // Add a 2 second
   delay(2000);
+}
+
+void readCovalue(){
+  value = analogRead(AOUTPin);
+  unsigned long currentTime = millis();
+
+  if(statustime == false){
+    if(currentTime - time > lowV){
+      time = currentTime;
+      statustime = true;
+    }
+  }else if(statustime == true){
+    if(currentTime - time < highV){
+      time = currentTime;
+      analogWrite(DOUTPin, 255);
+      statustime = false;
+    }
+  }
+  if(currentTime - sensorTime > value){
+    sensorTime = currentTime;
+  }
 }
 void HandleSetLimitCO(){
   while(Serial.available()){
@@ -69,9 +99,11 @@ void HandleLimitCO(){
   if(value >= serialValue){
     digitalWrite(ledPin, HIGH);
     Serial.println("Led ON");
+    digitalWrite(DOUTPin, LOW);
   }else if(value <= serialValue){
     digitalWrite(ledPin, LOW);
     Serial.println("Led OFF");
+    digitalWrite(DOUTPin, HIGH);
   }else{
     Serial.println("Invalid!");
   }
